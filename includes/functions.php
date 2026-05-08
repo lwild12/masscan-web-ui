@@ -92,9 +92,8 @@ function browse(array $filter, bool $export = false): array
             }
         } else {
             if (DB_DRIVER === 'pgsql') {
-                $tsquery = implode(' | ', preg_split('/\s+/', trim($filter['banner'])));
-                $q .= ' AND searchtext @@ to_tsquery(:banner_tsquery)';
-                $params[':banner_tsquery'] = $tsquery;
+                $q .= ' AND searchtext @@ websearch_to_tsquery(:banner_tsquery)';
+                $params[':banner_tsquery'] = $filter['banner'];
             } else {
                 $q .= ' AND MATCH(title, banner) AGAINST (:banner_fts IN NATURAL LANGUAGE MODE)';
                 $params[':banner_fts'] = $filter['banner'];
