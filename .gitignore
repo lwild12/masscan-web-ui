@@ -16,3 +16,6 @@ vendor/
 
 # Temp scan files
 /imports/
+
+# Local Claude Code settings
+.claude/settings.local.json

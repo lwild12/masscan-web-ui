@@ -23,9 +23,20 @@ if (!$job) {
     exit;
 }
 
-// Read live output from the log file
+// Read the tail of the live log file (last 50 KB) to avoid loading huge files
 $log_path = sys_get_temp_dir() . '/masscan_' . $job_id . '.log';
-$output   = is_file($log_path) ? file_get_contents($log_path) : '';
+$output   = '';
+if (is_file($log_path)) {
+    $fp = fopen($log_path, 'r');
+    if ($fp !== false) {
+        $size = filesize($log_path);
+        if ($size > 51200) {
+            fseek($fp, -51200, SEEK_END);
+        }
+        $output = (string) stream_get_contents($fp);
+        fclose($fp);
+    }
+}
 
 echo json_encode([
     'status'       => $job['status'],

@@ -50,13 +50,21 @@ jQuery(document).ready(function () {
     collapseEl.addEventListener('hide.bs.collapse', function () {
         jQuery('#collapse-icon').removeClass('bi-dash-lg').addClass('bi-plus-lg');
 
+        function escHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
         var parts = [];
-        if (jQuery('#ipAddress').val())    parts.push('IP: <strong>'           + jQuery('#ipAddress').val()    + '</strong>');
-        if (jQuery('#portN').val())        parts.push('Port: <strong>'         + jQuery('#portN').val()        + '</strong>');
-        if (jQuery('#serviceState').val()) parts.push('State: <strong>'        + jQuery('#serviceState').val() + '</strong>');
-        if (jQuery('#pProtocol').val())    parts.push('Protocol: <strong>'     + jQuery('#pProtocol').val()    + '</strong>');
-        if (jQuery('#pService').val())     parts.push('Service: <strong>'      + jQuery('#pService').val()     + '</strong>');
-        if (jQuery('#pBanner').val())      parts.push('Banner/Title: <strong>' + jQuery('#pBanner').val()      + '</strong>');
+        if (jQuery('#ipAddress').val())    parts.push('IP: <strong>'           + escHtml(jQuery('#ipAddress').val())    + '</strong>');
+        if (jQuery('#portN').val())        parts.push('Port: <strong>'         + escHtml(jQuery('#portN').val())        + '</strong>');
+        if (jQuery('#serviceState').val()) parts.push('State: <strong>'        + escHtml(jQuery('#serviceState').val()) + '</strong>');
+        if (jQuery('#pProtocol').val())    parts.push('Protocol: <strong>'     + escHtml(jQuery('#pProtocol').val())    + '</strong>');
+        if (jQuery('#pService').val())     parts.push('Service: <strong>'      + escHtml(jQuery('#pService').val())     + '</strong>');
+        if (jQuery('#pBanner').val())      parts.push('Banner/Title: <strong>' + escHtml(jQuery('#pBanner').val())      + '</strong>');
 
         if (parts.length > 0) {
             jQuery('#search-params').html(

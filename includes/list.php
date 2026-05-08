@@ -37,7 +37,7 @@ $data_search = 'action=search&rec_per_page=' . (int) $filter['rec_per_page']
         <div class="d-flex align-items-center gap-2">
             <select class="form-select form-select-sm w-auto"
                     onchange="searchData('<?php echo $rpp_data; ?>' + this.value)">
-                <?php foreach ([10, 20, 30, 50, 100] as $n): ?>
+                <?php foreach ([10, 20, 40, 50, 100] as $n): ?>
                     <option value="<?php echo $n; ?>"<?php if ($filter['rec_per_page'] == $n): echo ' selected'; endif; ?>>
                         <?php echo $n; ?>
                     </option>
@@ -95,7 +95,7 @@ $data_search = 'action=search&rec_per_page=' . (int) $filter['rec_per_page']
                         <?php echo htmlentities($r['service']); ?>
                         <?php if ($r['service'] === 'http'): ?>
                             <a href="http://<?php echo long2ip((int) $r['ipaddress']); ?><?php echo ((int) $r['port_id'] > 0 && (int) $r['port_id'] !== 80) ? ':' . $r['port_id'] : ''; ?>"
-                               target="_blank">
+                               target="_blank" rel="noopener noreferrer">
                                 <i class="bi bi-box-arrow-up-right"></i>
                             </a>
                         <?php endif; ?>

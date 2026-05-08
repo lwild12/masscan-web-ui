@@ -44,7 +44,9 @@ if ($raw === false) {
     fail_job($db, $job_id, 'Could not read XML file.');
 }
 
-$content = mb_convert_encoding($raw, 'UTF-8', 'UTF-8');
+$content = mb_check_encoding($raw, 'UTF-8')
+    ? $raw
+    : mb_convert_encoding($raw, 'UTF-8', 'ISO-8859-1');
 $xml     = simplexml_load_string($content, 'SimpleXMLElement', LIBXML_COMPACT | LIBXML_PARSEHUGE);
 if ($xml === false) {
     fail_job($db, $job_id, 'Failed to parse XML.');
