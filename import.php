@@ -1,155 +1,147 @@
 <?php
+declare(strict_types=1);
 /**
- * This script is only runnable form command line
+ * CLI-only import script.
+ * Usage: php import.php <path-to-masscan.xml>
+ *
+ * Docker example:
+ *   docker exec -it masscan-web-1 php /var/www/html/import.php /var/www/html/imports/scan.xml
  */
-if (substr(php_sapi_name(), 0, 3) != 'cli'):
-    die('This script can only be run from command line!');
-endif;
-include dirname(__FILE__).'/includes/functions.php';
-/**
- * Convert seconds to minutes, hours..
- * NOTICE : Approximate, assumes months have 30 days.
- */
-function seconds2human($ss)
+if (!str_starts_with(php_sapi_name(), 'cli')) {
+    die('This script can only be run from the command line!');
+}
+
+include __DIR__ . '/includes/functions.php';
+
+function seconds2human(int $ss): string
 {
-    $s = $ss%60;
-    $mins = floor(($ss%3600)/60);
-    $hours = floor(($ss%86400)/3600);
-    $days = floor(($ss%2592000)/86400);
-    $months = floor($ss/2592000);
-    $text = '';
-    if ($months > 0) {
-        $text .= $months." months,";
-    }
-    if ($days > 0) {
-        $text .= $days." days,";
-    }
-    if ($hours > 0) {
-        $text .= $hours." hours,";
-    }
-    if ($mins > 0) {
-        $text .= $mins." minutes,";
-    }
-    if ($s > 0) {
-        $text .= $s." seconds";
-    }
-    return $text;
+    $s      = $ss % 60;
+    $mins   = (int) floor(($ss % 3600) / 60);
+    $hours  = (int) floor(($ss % 86400) / 3600);
+    $days   = (int) floor(($ss % 2592000) / 86400);
+    $months = (int) floor($ss / 2592000);
+
+    $parts = [];
+    if ($months > 0) $parts[] = "$months months";
+    if ($days   > 0) $parts[] = "$days days";
+    if ($hours  > 0) $parts[] = "$hours hours";
+    if ($mins   > 0) $parts[] = "$mins minutes";
+    if ($s      > 0) $parts[] = "$s seconds";
+
+    return implode(', ', $parts) ?: '0 seconds';
 }
+
 if (!extension_loaded('simplexml')) {
-    echo "This script require php-xml package.".PHP_EOL;
-    echo "Install the package, restart webserver and run script again.".PHP_EOL;
-    exit;
+    echo 'This script requires the php-xml package.' . PHP_EOL;
+    echo 'Install the package, restart your web server and run the script again.' . PHP_EOL;
+    exit(1);
 }
-/**
- * Magic starts here
- */
+
 $start_ts = time();
-require dirname(__FILE__).'/config.php';
-if (!isset($argv[1])):
-	die('Please provide a file name to import!'."\n");
-endif;
-$tmp = pathinfo($argv[1]);
-if ($tmp['dirname'] == "."):
-	$filepath = dirname(__FILE__).'/'.$argv[1];
-else:
-	$filepath = $argv[1];
-endif;
-if (!is_file($filepath)):
-	echo "File:".$filepath;
-	echo PHP_EOL;
-	echo 'File does not exist!';
-    echo PHP_EOL;
-	exit;
-endif;
+
+require __DIR__ . '/config.php';
+
+if (!isset($argv[1])) {
+    die('Please provide a file path to import!' . PHP_EOL);
+}
+
+$tmp      = pathinfo($argv[1]);
+$filepath = $tmp['dirname'] === '.' ? __DIR__ . '/' . $argv[1] : $argv[1];
+
+if (!is_file($filepath)) {
+    echo 'File: ' . $filepath . PHP_EOL;
+    echo 'File does not exist!' . PHP_EOL;
+    exit(1);
+}
+
 do {
-	echo PHP_EOL;
-	echo "Do you want to clear the database before importing (yes/no)?: ";
-	$handle = fopen ("php://stdin","r");
-	$input = fgets($handle);
-} while (!in_array(trim($input), array('yes', 'no')));
+    echo PHP_EOL . 'Do you want to clear the database before importing (yes/no)?: ';
+    $input = trim((string) fgets(STDIN));
+} while (!in_array($input, ['yes', 'no'], true));
+
 $db = getPdo();
-if (trim(strtolower($input)) == 'yes'):
-	echo PHP_EOL;
-	echo "Clearing the db";
-	echo PHP_EOL;
-    $db->exec("TRUNCATE TABLE data");
-endif;
-echo "Reading file";
-echo PHP_EOL;
-$content =  utf8_encode(file_get_contents($filepath));
-echo "Parsing file";
-echo PHP_EOL;
+
+if ($input === 'yes') {
+    echo PHP_EOL . 'Clearing the database...' . PHP_EOL;
+    $db->exec('TRUNCATE TABLE data');
+}
+
+echo 'Reading file...' . PHP_EOL;
+$raw = file_get_contents($filepath);
+if ($raw === false) {
+    die('Could not read file: ' . $filepath . PHP_EOL);
+}
+// Ensure UTF-8; masscan XML is typically ASCII/UTF-8 but may contain Latin-1 banners
+$content = mb_convert_encoding($raw, 'UTF-8', 'UTF-8');
+
+echo 'Parsing file...' . PHP_EOL;
 $xml = simplexml_load_string($content, 'SimpleXMLElement', LIBXML_COMPACT | LIBXML_PARSEHUGE);
-if ($xml === false):
-    die('There is a problem with this xml file?!'.PHP_EOL);
-endif;
-$total		= 0;
-$inserted	= 0;
-echo "Processing data (This may take some time depending on file size)";
-echo PHP_EOL;
-$q = "INSERT INTO data (ip, port_id, scanned_ts, protocol, state, reason, reason_ttl, service, banner, title) VALUES (:ip, :port, :scanned_ts, :protocol, :state, :reason, :reason_ttl, :service, :banner, :title)";
+if ($xml === false) {
+    die('There is a problem with this XML file.' . PHP_EOL);
+}
+
+$total    = 0;
+$inserted = 0;
+
+echo 'Processing data (this may take some time for large files)...' . PHP_EOL;
+
+$q    = 'INSERT INTO data (ip, port_id, scanned_ts, protocol, state, reason, reason_ttl, service, banner, title) '
+      . 'VALUES (:ip, :port, :scanned_ts, :protocol, :state, :reason, :reason_ttl, :service, :banner, :title)';
 $stmt = $db->prepare($q);
-$stmt->bindParam(':ip', $ip, PDO::PARAM_INT);
-$stmt->bindParam(':port', $port, PDO::PARAM_INT);
+
+$stmt->bindParam(':ip',         $ip,         PDO::PARAM_INT);
+$stmt->bindParam(':port',       $port,       PDO::PARAM_INT);
 $stmt->bindParam(':scanned_ts', $scanned_ts);
-$stmt->bindParam(':protocol', $protocol, PDO::PARAM_STR);
-$stmt->bindParam(':state', $state, PDO::PARAM_STR);
-$stmt->bindParam(':reason', $reason, PDO::PARAM_STR);
+$stmt->bindParam(':protocol',   $protocol,   PDO::PARAM_STR);
+$stmt->bindParam(':state',      $state,      PDO::PARAM_STR);
+$stmt->bindParam(':reason',     $reason,     PDO::PARAM_STR);
 $stmt->bindParam(':reason_ttl', $reason_ttl, PDO::PARAM_INT);
-$stmt->bindParam(':service', $service, PDO::PARAM_STR);
-$stmt->bindParam(':banner', $banner, PDO::PARAM_STR);
-$stmt->bindParam(':title', $title, PDO::PARAM_STR);
+$stmt->bindParam(':service',    $service,    PDO::PARAM_STR);
+$stmt->bindParam(':banner',     $banner,     PDO::PARAM_STR);
+$stmt->bindParam(':title',      $title,      PDO::PARAM_STR);
 
-foreach ($xml->host as $host):
-
-    foreach ($host->ports as $p):
-        $ip         = sprintf('%u', ip2long($host->address['addr']));
-		$ts         = (int) $host['endtime'];
-		$scanned_ts = date("Y-m-d H:i:s", $ts);
+foreach ($xml->host as $host) {
+    foreach ($host->ports as $p) {
+        $ip         = (int) sprintf('%u', ip2long((string) $host->address['addr']));
+        $ts         = (int) $host['endtime'];
+        $scanned_ts = date('Y-m-d H:i:s', $ts);
         $port       = (int) $p->port['portid'];
         $protocol   = (string) $p->port['protocol'];
-        if (isset($p->port->service)):
+
+        if (isset($p->port->service)) {
             $service = (string) $p->port->service['name'];
-            if ($service == 'title'):
-                if (isset($p->port->service['banner'])):
-                    $title = $p->port->service['banner'];
-                else:
-                    $title = '';
-                endif;
+            if ($service === 'title') {
+                $title  = isset($p->port->service['banner']) ? (string) $p->port->service['banner'] : '';
                 $banner = '';
-            else:
-                if (isset($p->port->service['banner'])):
-                    $banner = $p->port->service['banner'];
-                else:
-                    $banner = '';
-                endif;
-                $title = '';
-            endif;
-        else:
+            } else {
+                $banner = isset($p->port->service['banner']) ? (string) $p->port->service['banner'] : '';
+                $title  = '';
+            }
+        } else {
             $service = '';
-            $banner = '';
-            $title = '';
-        endif;
+            $banner  = '';
+            $title   = '';
+        }
+
         $state      = (string) $p->port->state['state'];
         $reason     = (string) $p->port->state['reason'];
-        $reason_ttl = (int) $p->port->state['reason_ttl'];
-        $total++;
-        if ($stmt->execute()):
-            $inserted++;
-        endif;
-	endforeach;
+        $reason_ttl = (int)    $p->port->state['reason_ttl'];
 
-endforeach;
-if (DB_DRIVER == 'pgsql') {
-    $q = "UPDATE data SET searchtext = to_tsvector('english', title || '' || banner || '' || service || '' || protocol || '' || port_id)";
-    $db->exec($q);
+        $total++;
+        if ($stmt->execute()) {
+            $inserted++;
+        }
+    }
 }
-$end_ts = time();
-echo PHP_EOL;
-echo "Summary:";
-echo PHP_EOL;
-echo "Total records:".$total."\n";
-echo "Inserted records:".$inserted."\n";
-$secs = $end_ts - $start_ts;
-echo "Took about:".seconds2human($secs);
-echo PHP_EOL;
+
+if (DB_DRIVER === 'pgsql') {
+    echo PHP_EOL . 'Building full-text search index...' . PHP_EOL;
+    $db->exec("UPDATE data SET searchtext = to_tsvector('english', title || ' ' || banner || ' ' || service || ' ' || protocol || ' ' || port_id)");
+}
+
+$secs = time() - $start_ts;
+
+echo PHP_EOL . 'Summary:' . PHP_EOL;
+echo 'Total records:    ' . $total    . PHP_EOL;
+echo 'Inserted records: ' . $inserted . PHP_EOL;
+echo 'Time taken:       ' . seconds2human($secs) . PHP_EOL;

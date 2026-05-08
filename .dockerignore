@@ -1,0 +1,6 @@
+.git
+.env
+.env.local
+docker-compose.override.yml
+*.md
+.claude

@@ -1,193 +1,184 @@
+/* =========================================================
+ * Masscan Web UI — scripts.js
+ * Bootstrap 5 + jQuery 3
+ * ========================================================= */
+
 var delayTimer;
-$('#myModal').on('show', function () {
-    $(this).find('.modal-body').css({width:'auto',
-                               height:'auto', 
-                              'max-height':'100%'});
-    
-    
-});
 
-jQuery(document).ready(function () {
-    jQuery('.collapse')
-        .on('shown.bs.collapse', function() {
-            jQuery('#search-params').html('');
-            jQuery(this)
-                .parent()
-                .find(".glyphicon-plus")
-                .removeClass("glyphicon-plus")
-                .addClass("glyphicon-minus");
+/* ---------------------------------------------------------
+ * Dark mode toggle
+ * --------------------------------------------------------- */
+(function () {
+    var html   = document.documentElement;
+    var saved  = localStorage.getItem('theme') || 'light';
+    html.setAttribute('data-bs-theme', saved);
 
-        })
-        .on('hidden.bs.collapse', function() {
-            jQuery(this)
-                .parent()
-                .find(".glyphicon-minus")
-                .removeClass("glyphicon-minus")
-                .addClass("glyphicon-plus");
-
-            var text = new Array;
-            if (jQuery('#ipAddress').val().length > 0){
-                text[text.length] = "IP: <strong>" + jQuery('#ipAddress').val() + "</strong>";
-            }
-            if (jQuery('#portN').val().length > 0){
-                text[text.length] = "Port: <strong>" + jQuery('#portN').val() + "</strong>";
-            }
-            if (jQuery('#serviceState').val().length > 0){
-                text[text.length] = "Service state: <strong>" + jQuery('#serviceState').val() + "</strong>";
-            }
-            if (jQuery('#pProtocol').val().length > 0){
-                text[text.length] = "Protocol: <strong>" + jQuery('#pProtocol').val() + "</strong>";
-            }
-            if (jQuery('#pService').val().length > 0){
-                text[text.length] = "Service: <strong>" + jQuery('#pService').val() + "</strong>";
-            }
-            if (jQuery('#pBanner').val().length > 0){
-                text[text.length]= "Banner/Title: <strong>" + jQuery('#pBanner').val() + "</strong>";
-            }
-            if (text.length > 0) {
-                var html = '<p class="text-muted">';
-                for (var i =0; i < text.length; i++)
-                {
-                    html += text[i];
-                    if (i+1 < text.length) {
-                         html += " | ";
-                    }
-                }
-                html += "</p>";
-                jQuery('#search-params').html(html);
-            }
+    document.addEventListener('DOMContentLoaded', function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        updateToggleIcon(saved);
+        btn.addEventListener('click', function () {
+            var current = html.getAttribute('data-bs-theme');
+            var next    = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-bs-theme', next);
+            localStorage.setItem('theme', next);
+            updateToggleIcon(next);
         });
+    });
+
+    function updateToggleIcon(theme) {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var icon = btn.querySelector('i');
+        if (!icon) return;
+        icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+    }
+})();
+
+/* ---------------------------------------------------------
+ * Search panel collapse — show active filter summary
+ * --------------------------------------------------------- */
+jQuery(document).ready(function () {
+    var collapseEl = document.getElementById('collapse');
+    if (!collapseEl) return;
+
+    collapseEl.addEventListener('show.bs.collapse', function () {
+        jQuery('#search-params').html('');
+        jQuery('#collapse-icon').removeClass('bi-plus-lg').addClass('bi-dash-lg');
+    });
+
+    collapseEl.addEventListener('hide.bs.collapse', function () {
+        jQuery('#collapse-icon').removeClass('bi-dash-lg').addClass('bi-plus-lg');
+
+        var parts = [];
+        if (jQuery('#ipAddress').val())    parts.push('IP: <strong>'           + jQuery('#ipAddress').val()    + '</strong>');
+        if (jQuery('#portN').val())        parts.push('Port: <strong>'         + jQuery('#portN').val()        + '</strong>');
+        if (jQuery('#serviceState').val()) parts.push('State: <strong>'        + jQuery('#serviceState').val() + '</strong>');
+        if (jQuery('#pProtocol').val())    parts.push('Protocol: <strong>'     + jQuery('#pProtocol').val()    + '</strong>');
+        if (jQuery('#pService').val())     parts.push('Service: <strong>'      + jQuery('#pService').val()     + '</strong>');
+        if (jQuery('#pBanner').val())      parts.push('Banner/Title: <strong>' + jQuery('#pBanner').val()      + '</strong>');
+
+        if (parts.length > 0) {
+            jQuery('#search-params').html(
+                '<p class="text-muted small mb-0 ms-2">' + parts.join(' | ') + '</p>'
+            );
+        }
+    });
 });
 
+/* ---------------------------------------------------------
+ * Form search submit (via AJAX)
+ * --------------------------------------------------------- */
 function submitSearchForm()
 {
-    var data = jQuery('#form').serialize();
-    var data = data + '&form=1';
-    var ajax_options = {
-        beforeSend:function () {
-            jQuery('#ajax-loader-form').css('display', 'block');
-        },
-        complete:function () {
-            jQuery('#ajax-loader-form').css('display', 'none');
-        },
-        error:function (XMLHttpRequest, textStatus, errorThrown) {
-            alert('There was an error durring request. Please try again later!');
-        },
-        success:function (response, textStatus) {
+    var data = jQuery('#form').serialize() + '&form=1';
+    jQuery.ajax({
+        beforeSend: function () { jQuery('#ajax-loader-form').removeClass('d-none'); },
+        complete:   function () { jQuery('#ajax-loader-form').addClass('d-none'); },
+        error: function () { alert('There was an error during the request. Please try again.'); },
+        success: function (response) {
             jQuery('#ajax-search-container').html(response);
-            jQuery('a#export-link').attr('onclick','').unbind('click');
-            jQuery('a#export-link').click(function(){
+            jQuery('a#export-link').off('click').on('click', function () {
                 exportResultsToXML(data);
+                return false;
             });
         },
-        timeout:'100000',
-        type:'get',
-        dataType:'html',
-        data:data,
-        url:'./filter.php'
-    };
-    $.ajax(ajax_options);
+        timeout:  100000,
+        type:     'get',
+        dataType: 'html',
+        data:     data,
+        url:      './filter.php'
+    });
     return false;
 }
+
+/* ---------------------------------------------------------
+ * IP history modal
+ * --------------------------------------------------------- */
 function showIpHistory(ip, ipa)
 {
-	jQuery('#myModalLabel').text('Scan history for IP '+ ip);
-    var ajax_options = {
-            beforeSend:function () {
-                
-            },
-            complete:function () {
-                
-            },
-            error:function (XMLHttpRequest, textStatus, errorThrown) {
-                alert('There was an error durring request. Please try again later!');
-            },
-            success:function (response, textStatus) {
-            	$('#myModal').modal('show');           	
-            	jQuery('.modal-body').html(response);
-            },
-            timeout:'100000',
-            type:'get',
-            dataType:'html',
-            data:'ip='+ipa,
-            url:'./ajax.php'
-        };
-    $.ajax(ajax_options);
+    jQuery('#myModalLabel').text('Scan history for IP ' + ip);
+    jQuery.ajax({
+        error: function () { alert('There was an error during the request. Please try again.'); },
+        success: function (response) {
+            jQuery('.modal-body').html(response);
+            var modal = new bootstrap.Modal(document.getElementById('myModal'));
+            modal.show();
+        },
+        timeout:  100000,
+        type:     'get',
+        dataType: 'html',
+        data:     'ip=' + ipa,
+        url:      './ajax.php'
+    });
     return false;
 }
 
-
+/* ---------------------------------------------------------
+ * XML export (hidden iframe download)
+ * --------------------------------------------------------- */
 function exportResultsToXML(data)
 {
-    var url='./export.php?'+ data;
-	var _iframe_dl = $('<iframe />')
-	       .attr('src', url)
-	       .hide()
-	       .appendTo('body');
-	return false;
-}
-
-function searchDataText(data)
-{ 
-	clearTimeout(delayTimer);
-    delayTimer = setTimeout(function() {
-    	searchData(data);
-    }, 1000);
-}
-
-function searchData(data, throbber)
-{
-    throbber = typeof throbber !== 'undefined' ? throbber : 'ajax-loader';
-    var ajax_options = {
-            beforeSend:function () {
-                jQuery('#' + throbber).css('display', 'block');
-            },
-            complete:function () {
-                jQuery('#'+ throbber).css('display', 'none');
-            },
-            error:function (XMLHttpRequest, textStatus, errorThrown) {
-                alert('There was an error durring request. Please try again later!');
-            },
-            success:function (response, textStatus) {
-                jQuery('#ajax-list-container').html(response);
-                jQuery('a#export-link').attr('onclick','').unbind('click');
-                jQuery('a#export-link').click(function(){
-                        exportResultsToXML(data);
-                    });
-            },
-            timeout:'100000',
-            type:'get',
-            dataType:'html',
-            data:data,
-            url:'./filter.php'
-        };
-    $.ajax(ajax_options);
+    $('<iframe />')
+        .attr('src', './export.php?' + data)
+        .hide()
+        .appendTo('body');
     return false;
 }
 
+/* ---------------------------------------------------------
+ * Debounced quick-search
+ * --------------------------------------------------------- */
+function searchDataText(data)
+{
+    clearTimeout(delayTimer);
+    delayTimer = setTimeout(function () { searchData(data); }, 1000);
+}
+
+/* ---------------------------------------------------------
+ * Generic AJAX search / pagination
+ * --------------------------------------------------------- */
+function searchData(data, throbber)
+{
+    throbber = throbber || 'ajax-loader';
+    jQuery.ajax({
+        beforeSend: function () { jQuery('#' + throbber).removeClass('d-none'); },
+        complete:   function () { jQuery('#' + throbber).addClass('d-none'); },
+        error: function () { alert('There was an error during the request. Please try again.'); },
+        success: function (response) {
+            jQuery('#ajax-list-container').html(response);
+            jQuery('a#export-link').off('click').on('click', function () {
+                exportResultsToXML(data);
+                return false;
+            });
+        },
+        timeout:  100000,
+        type:     'get',
+        dataType: 'html',
+        data:     data,
+        url:      './filter.php'
+    });
+    return false;
+}
+
+/* ---------------------------------------------------------
+ * Import help modal
+ * --------------------------------------------------------- */
 function showImportHelp()
 {
     jQuery('#myModalLabel').text('How to scan and import data?');
-    var ajax_options = {
-            beforeSend:function () {
-
-            },
-            complete:function () {
-
-            },
-            error:function (XMLHttpRequest, textStatus, errorThrown) {
-                alert('There was an error during request. Please try again!');
-            },
-            success:function (response, textStatus) {
-            	$('#myModal').modal('show');
-            	jQuery('.modal-body').html(response);
-            },
-            timeout:'100000',
-            type:'get',
-            dataType:'html',
-            data:'',
-            url:'./includes/html/import-help.html'
-        };
-    $.ajax(ajax_options);
+    jQuery.ajax({
+        error: function () { alert('There was an error during the request. Please try again.'); },
+        success: function (response) {
+            jQuery('.modal-body').html(response);
+            var modal = new bootstrap.Modal(document.getElementById('myModal'));
+            modal.show();
+        },
+        timeout:  100000,
+        type:     'get',
+        dataType: 'html',
+        data:     '',
+        url:      './includes/html/import-help.html'
+    });
     return false;
 }

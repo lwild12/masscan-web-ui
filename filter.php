@@ -1,10 +1,11 @@
 <?php
-define('APP_NAME', 'massscan');
-require dirname(__FILE__).'/config.php';
-require dirname(__FILE__).'/includes/functions.php';
-require dirname(__FILE__).'/includes/data_validation.php';
-if (isset($_GET['form'])):
-    require dirname(__FILE__).'/includes/res-wrapper.php';
-else:
-    require dirname(__FILE__).'/includes/list.php';
-endif;
+declare(strict_types=1);
+require __DIR__ . '/config.php';
+require __DIR__ . '/includes/functions.php';
+require __DIR__ . '/includes/data_validation.php';
+
+if (isset($_GET['form'])) {
+    require __DIR__ . '/includes/res-wrapper.php';
+} else {
+    require __DIR__ . '/includes/list.php';
+}

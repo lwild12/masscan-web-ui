@@ -1,89 +1,163 @@
-# masscan-web-ui
-MASSCAN Web UI
+# Masscan Web UI
 
-https://www.offensive-security.com/offsec/masscan-web-interface/
+A modern web interface for browsing, searching, and visualising [Masscan](https://github.com/robertdavidgraham/masscan) network scan results.
 
-Here's a quick guide to get started:
+**Modernised from the original [Offensive Security](https://github.com/offensive-security/masscan-web-ui) project (archived 2022).**
 
-* Install and setup your web server, copy over the MASSCAN web-ui files:
+![PHP 8.2](https://img.shields.io/badge/PHP-8.2+-8892BF?logo=php)
+![Bootstrap 5](https://img.shields.io/badge/Bootstrap-5.3-7952B3?logo=bootstrap)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)
 
-```
-root@kali:~# apt-get install apache2 php libapache2-mod-php php-mysqli php-xml mysql-server
-root@kali:~# git clone https://github.com/offensive-security/masscan-web-ui
-root@kali:~# mv masscan-web-ui/* /var/www/html/
-root@kali:~# cd /var/www/html/
-```
+---
 
-* Create a database, user, then import database.
+## Features
 
-```
-root@kali:/var/www/html# mysql -u root -p
-Enter password: 
-Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+- **Search** scan results by IP, port, state, protocol, service, and banner/title
+- **Dashboard** with host counts, top ports/services charts, and scan activity timeline
+- **Scan launcher** — run Masscan directly from the browser (Docker mode)
+- **Export** results as XML (Nmap-compatible) or CSV
+- **Dark mode** toggle that persists across sessions
+- **MySQL** (default) or **PostgreSQL** support
+- Fully **Dockerised** — one command to get running
 
-mysql> create database masscan;
-Query OK, 1 row affected (0.01 sec)
+---
 
-mysql> CREATE USER 'masscan'@'localhost' IDENTIFIED BY 'changem3';
-Query OK, 0 rows affected (0.00 sec)
+## Quick Start (Docker)
 
-mysql> GRANT ALL PRIVILEGES ON masscan.* TO 'masscan'@'localhost';
-Query OK, 0 rows affected (0.01 sec)
-
-mysql> exit
-Bye
-root@kali:/var/www/html# mysql -u root -p masscan < db-structure.sql 
-Enter password: 
-root@kali:/var/www/html# rm db-structure.sql index.html README.md
+```bash
+git clone https://github.com/your-fork/masscan-web-ui.git
+cd masscan-web-ui
+docker compose up --build -d
 ```
 
-Update the web config file with the database information:
+Open **http://localhost:8080** in your browser.
 
-```
-nano config.php
-define('DB_DRIVER',	    'mysql');
-define('DB_HOST',       'localhost');
-define('DB_USERNAME',   'masscan');
-define('DB_PASSWORD',   'changem3');
-define('DB_DATABASE',   'masscan');
-```
+The database is initialised automatically on first start.
 
-Now you can use masscan to scan your targets, while specifying an XML output. More information about banner grabbing with masscan can be found at https://github.com/robertdavidgraham/masscan#banner-checking.
+### Customise settings
 
-```
-masscan 10.0.0.0/8 -p80,21,53 --banners --source-ip 10.0.0.2 --max-rate 1000000 -oX scan-01.xml
+Copy `.env.example` to `.env` and edit before running:
+
+```bash
+cp .env.example .env
+# edit .env — change passwords, ports, etc.
+docker compose up --build -d
 ```
 
-Now let's import some scan results. In this example we imported the results of two class A scans:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_DRIVER` | `mysql` | `mysql` or `pgsql` |
+| `DB_HOST` | `db` (Docker) | Database host |
+| `DB_USERNAME` | `masscan` | Database user |
+| `DB_PASSWORD` | `changem3` | Database password — **change this!** |
+| `DB_DATABASE` | `masscan` | Database name |
+| `DB_ROOT_PASSWORD` | `rootpassword` | MySQL root password |
+| `WEB_PORT` | `8080` | Host port for the web UI |
+| `APP_DEBUG` | `false` | Show PHP errors (dev only) |
+
+---
+
+## Running Scans
+
+### Option A — From the browser (Docker)
+
+Click **Scan** in the navigation bar. Enter a target and ports, then click **Start Scan**.
+Masscan runs inside the container and results are imported automatically.
+
+> The container requires `CAP_NET_RAW` (included in `docker-compose.yml`) to run Masscan.
+
+### Option B — Manual import
+
+Run Masscan on the command line and export to XML:
+
+```bash
+masscan 10.0.0.0/24 -p 80,443,22,21 --banners -oX scan.xml
+```
+
+Then import into the database:
+
+**Docker:**
+```bash
+# Copy the XML into the container's imports directory, then:
+docker cp scan.xml masscan-web-ui-web-1:/var/www/html/imports/
+docker exec -it masscan-web-ui-web-1 php /var/www/html/import.php /var/www/html/imports/scan.xml
+```
+
+**Bare-metal:**
+```bash
+php import.php /path/to/scan.xml
+```
+
+The import script will ask if you want to clear the database first.
+
+---
+
+## Bare-Metal Setup
+
+Requirements: **PHP 8.2+**, **Apache 2** (or Nginx), **MySQL 8** or **PostgreSQL 14+**, `php-pdo`, `php-pdo-mysql` / `php-pdo-pgsql`, `php-xml`
+
+```bash
+# 1. Clone
+git clone https://github.com/your-fork/masscan-web-ui.git /var/www/html/masscan
+
+# 2. Create database (MySQL example)
+mysql -u root -p <<'SQL'
+CREATE DATABASE masscan CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'masscan'@'localhost' IDENTIFIED BY 'changem3';
+GRANT ALL PRIVILEGES ON masscan.* TO 'masscan'@'localhost';
+FLUSH PRIVILEGES;
+SQL
+
+mysql -u masscan -p masscan < db-structure-mysql.sql
+
+# 3. Set environment variables in Apache (add to VirtualHost):
+#   SetEnv DB_DRIVER   mysql
+#   SetEnv DB_HOST     127.0.0.1
+#   SetEnv DB_USERNAME masscan
+#   SetEnv DB_PASSWORD changem3
+#   SetEnv DB_DATABASE masscan
+```
+
+---
+
+## Architecture
 
 ```
-root@kali:/var/www/html# ls -l scan*
--rw-r--r-- 1 root root 212929324 Dec  1 13:23 scan-01.xml
--rw-r--r-- 1 root root 700816226 Dec  1 13:55 scan-02.xml
-root@kali:/var/www/html# php import.php scan-01.xml 
-
-Do you want to clear the database before importing (yes/no)?: yes
-
-Clearing the db
-Reading file
-Parsing file
-Processing data (This may take some time depending on file size)
-
-Summary:
-Total records:738279
-Inserted records:738279
-Took about:3 minutes,18 seconds
-root@kali:/var/www/html# php import.php scan-02.xml 
-
-Do you want to clear the database before importing (yes/no)?: no
-Reading file
-Parsing file
-Processing data (This may take some time depending on file size)
-
-Summary:
-Total records:2411974
-Inserted records:2411974
-Took about:9 minutes,41 seconds
-root@kali:/var/www/html# 
+index.php               — Search page
+dashboard.php           — Stats & charts
+scan.php                — Scan launcher UI
+ajax-scan.php           — Starts a masscan job (POST)
+includes/
+  scan_status.php       — Job status polling (GET → JSON)
+  scan_import.php       — Auto-import after scan (CLI, called by wrapper)
+  functions.php         — DB helpers: browse(), getStats(), getStartAndEndIps()
+  data_validation.php   — Input sanitisation
+  header.php / footer.php — Layout templates
+  list.php              — Results table template
+  res-wrapper.php       — Results card wrapper
+assets/
+  style.css             — Custom Bootstrap 5 theme
+  scripts.js            — AJAX search, dark mode, modals
+  dashboard.js          — Chart.js charts
+docker/
+  php/Dockerfile        — PHP 8.2 + Apache + Masscan
+  mysql/init/           — DB auto-initialisation SQL
 ```
-A total of more than 3 million results are now easily searchable. 
+
+---
+
+## Security Notes
+
+- All database queries use **parameterised prepared statements** (PDO).
+- Scan target and port inputs are **regex-validated** before being passed to `exec()`.
+- All shell arguments use **`escapeshellarg()`**.
+- One scan at a time is enforced via the `jobs` table.
+- The scan launcher requires `CAP_NET_RAW` inside Docker — do not expose the UI to untrusted networks without authentication.
+
+---
+
+## Licence
+
+Original work © Offensive Security — MIT Licence.
+Modernisation additions are released under the same terms.
