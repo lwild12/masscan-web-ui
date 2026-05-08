@@ -26,7 +26,7 @@ A modern web interface for browsing, searching, and visualising [Masscan](https:
 ## Quick Start (Docker)
 
 ```bash
-git clone https://github.com/your-fork/masscan-web-ui.git
+git clone https://github.com/lwild12/masscan-web-ui.git
 cd masscan-web-ui
 docker compose up --build -d
 ```
@@ -99,7 +99,7 @@ Requirements: **PHP 8.2+**, **Apache 2** (or Nginx), **MySQL 8** or **PostgreSQL
 
 ```bash
 # 1. Clone
-git clone https://github.com/your-fork/masscan-web-ui.git /var/www/html/masscan
+git clone https://github.com/lwild12/masscan-web-ui.git /var/www/html/masscan
 
 # 2. Create database (MySQL example)
 mysql -u root -p <<'SQL'
