@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Usage: php import.php <path-to-masscan.xml>
  *
  * Docker example:
- *   docker exec -it masscan-web-1 php /var/www/html/import.php /var/www/html/imports/scan.xml
+ *   docker compose exec web php /var/www/html/import.php /var/www/html/imports/scan.xml
  */
 if (!str_starts_with(php_sapi_name(), 'cli')) {
     die('This script can only be run from the command line!');
@@ -71,8 +71,10 @@ $raw = file_get_contents($filepath);
 if ($raw === false) {
     die('Could not read file: ' . $filepath . PHP_EOL);
 }
-// Ensure UTF-8; masscan XML is typically ASCII/UTF-8 but may contain Latin-1 banners
-$content = mb_convert_encoding($raw, 'UTF-8', 'UTF-8');
+// Ensure UTF-8; masscan XML may contain Latin-1 banners
+$content = mb_check_encoding($raw, 'UTF-8')
+    ? $raw
+    : mb_convert_encoding($raw, 'UTF-8', 'ISO-8859-1');
 
 echo 'Parsing file...' . PHP_EOL;
 $xml = simplexml_load_string($content, 'SimpleXMLElement', LIBXML_COMPACT | LIBXML_PARSEHUGE);

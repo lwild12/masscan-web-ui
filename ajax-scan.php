@@ -86,39 +86,35 @@ $insert->execute([
 // ----------------------------------------------------------------
 // Build masscan command and launch in background
 // ----------------------------------------------------------------
-$cmd_parts = [
-    escapeshellarg($masscan_bin),
-    escapeshellarg($target),
-    '-p' . escapeshellarg($ports),
-    '--rate=' . $rate,
-    '-oX', escapeshellarg($xml_path),
-];
-
-if ($banners) {
-    $cmd_parts[] = '--banners';
+if (in_array($ports, ['top100', 'top1000'], true)) {
+    $port_arg = '--top-ports ' . ($ports === 'top100' ? '100' : '1000');
+} else {
+    $port_arg = '-p' . escapeshellarg($ports);
 }
 
-// Write a small wrapper script so the background process can update job status
+$masscan_cmd = escapeshellarg($masscan_bin)
+    . ' ' . escapeshellarg($target)
+    . ' ' . $port_arg
+    . ' --rate=' . $rate
+    . ' -oX ' . escapeshellarg($xml_path);
+
+if ($banners) {
+    $masscan_cmd .= ' --banners';
+}
+
+// Write a small wrapper script so the background process can update job status.
+// No set -e: always run scan_import.php so it can mark the job failed if masscan errored.
 $wrapper_script = sys_get_temp_dir() . '/masscan_wrapper_' . $job_id . '.sh';
 $php_bin        = PHP_BINARY;
 $doc_root       = __DIR__;
 
-$wrapper_content = <<<BASH
-#!/bin/bash
-set -e
-{$cmd_parts[0]} {$cmd_parts[1]} {$cmd_parts[2]} {$cmd_parts[3]} {$cmd_parts[4]} {$cmd_parts[5]}
-BASH;
-
-// Handle optional banners flag
-if ($banners) {
-    $wrapper_content .= ' --banners';
-}
-$wrapper_content .= " > " . escapeshellarg($log_path) . " 2>&1\n";
-
-// After scan, auto-import and update job record
-$wrapper_content .= <<<BASH
-{$php_bin} {$doc_root}/includes/scan_import.php {$job_id} {$xml_path} >> {$log_path} 2>&1 &
-BASH;
+$wrapper_content = "#!/bin/bash\n"
+    . $masscan_cmd . ' > ' . escapeshellarg($log_path) . " 2>&1\n"
+    . escapeshellarg($php_bin)
+    . ' ' . escapeshellarg($doc_root . '/includes/scan_import.php')
+    . ' ' . escapeshellarg($job_id)
+    . ' ' . escapeshellarg($xml_path)
+    . ' >> ' . escapeshellarg($log_path) . " 2>&1\n";
 
 file_put_contents($wrapper_script, $wrapper_content);
 chmod($wrapper_script, 0755);

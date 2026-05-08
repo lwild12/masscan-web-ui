@@ -42,7 +42,7 @@ if (!empty($results)) { ?>
             <td>
                 <?php if ($r['service'] !== 'title'): echo htmlentities($r['service']); endif; ?>
                 <?php if ($r['service'] === 'http'): ?>
-                    <a href="http://<?php echo long2ip((int) $r['ipaddress']); ?>" target="_blank">
+                    <a href="http://<?php echo long2ip((int) $r['ipaddress']); ?>" target="_blank" rel="noopener noreferrer">
                         <i class="bi bi-box-arrow-up-right"></i>
                     </a>
                 <?php endif; ?>

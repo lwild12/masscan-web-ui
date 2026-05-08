@@ -105,9 +105,8 @@ function browse(array $filter, bool $export = false): array
     // Text / quick search across banner, service, protocol, port
     if (!empty($filter['text'])) {
         if (DB_DRIVER === 'pgsql') {
-            $tsquery = implode(' | ', preg_split('/\s+/', trim($filter['text'])));
-            $q .= ' AND searchtext @@ to_tsquery(:text_tsquery)';
-            $params[':text_tsquery'] = $tsquery;
+            $q .= ' AND searchtext @@ websearch_to_tsquery(:text_tsquery)';
+            $params[':text_tsquery'] = $filter['text'];
         } else {
             $q .= ' AND (MATCH(title, banner) AGAINST (:text_fts IN NATURAL LANGUAGE MODE)'
                 . ' OR service LIKE :text_service'

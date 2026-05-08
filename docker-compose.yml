@@ -15,7 +15,6 @@ services:
     volumes:
       - imports:/var/www/html/imports
     cap_add:
-      - NET_ADMIN
       - NET_RAW
     depends_on:
       db:

@@ -2,11 +2,11 @@
         <div class="container-fluid text-center py-2">
             <ul class="list-inline mb-0">
                 <li class="list-inline-item">
-                    Masscan Web UI on <a href="https://github.com/offensive-security/masscan-web-ui" target="_blank">GitHub</a>
+                    Masscan Web UI on <a href="https://github.com/offensive-security/masscan-web-ui" target="_blank" rel="noopener noreferrer">GitHub</a>
                 </li>
                 <li class="list-inline-item">|</li>
                 <li class="list-inline-item">
-                    Check the <a href="https://github.com/offensive-security/masscan-web-ui#readme" target="_blank">README</a> for instructions
+                    Check the <a href="https://github.com/offensive-security/masscan-web-ui#readme" target="_blank" rel="noopener noreferrer">README</a> for instructions
                 </li>
             </ul>
         </div>
