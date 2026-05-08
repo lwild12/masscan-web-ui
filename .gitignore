@@ -1,0 +1,18 @@
+# Environment / secrets
+.env
+.env.local
+
+# Docker Compose dev overrides
+docker-compose.override.yml
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# PHP
+vendor/
+
+# Temp scan files
+/imports/

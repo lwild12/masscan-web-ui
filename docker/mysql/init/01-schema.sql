@@ -1,9 +1,5 @@
--- Masscan Web UI — MySQL schema
--- Engine: InnoDB (supports FULLTEXT since MySQL 5.6, crash-safe)
--- Charset: utf8mb4 (full 4-byte Unicode)
-
-DROP TABLE IF EXISTS `jobs`;
-DROP TABLE IF EXISTS `data`;
+-- Masscan Web UI — MySQL initialisation schema
+-- Auto-run by the MySQL Docker image on first container start.
 
 CREATE TABLE IF NOT EXISTS `data` (
   `id`         bigint unsigned      NOT NULL AUTO_INCREMENT,
@@ -24,16 +20,16 @@ CREATE TABLE IF NOT EXISTS `data` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `jobs` (
-  `id`           varchar(36)                         NOT NULL,
-  `status`       enum('running','done','failed')     NOT NULL DEFAULT 'running',
-  `target`       varchar(500)                        NOT NULL,
-  `ports`        varchar(500)                        NOT NULL,
-  `rate`         int unsigned                        NOT NULL DEFAULT 1000,
-  `banners`      tinyint(1)                          NOT NULL DEFAULT 0,
-  `started_at`   timestamp                           NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `finished_at`  timestamp                           NULL,
-  `record_count` int unsigned                        DEFAULT NULL,
-  `error_msg`    text                                DEFAULT NULL,
+  `id`           varchar(36)                          NOT NULL,
+  `status`       enum('running','done','failed')      NOT NULL DEFAULT 'running',
+  `target`       varchar(500)                         NOT NULL,
+  `ports`        varchar(500)                         NOT NULL,
+  `rate`         int unsigned                         NOT NULL DEFAULT 1000,
+  `banners`      tinyint(1)                           NOT NULL DEFAULT 0,
+  `started_at`   timestamp                            NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `finished_at`  timestamp                            NULL,
+  `record_count` int unsigned                         DEFAULT NULL,
+  `error_msg`    text                                 DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `status` (`status`),
   KEY `started_at` (`started_at`)

@@ -1,0 +1,47 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    environment:
+      DB_DRIVER:   ${DB_DRIVER:-mysql}
+      DB_HOST:     db
+      DB_USERNAME: ${DB_USERNAME:-masscan}
+      DB_PASSWORD: ${DB_PASSWORD:-changem3}
+      DB_DATABASE: ${DB_DATABASE:-masscan}
+      APP_DEBUG:   ${APP_DEBUG:-false}
+    volumes:
+      - imports:/var/www/html/imports
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE:      ${DB_DATABASE:-masscan}
+      MYSQL_USER:          ${DB_USERNAME:-masscan}
+      MYSQL_PASSWORD:      ${DB_PASSWORD:-changem3}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+             "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  imports:
